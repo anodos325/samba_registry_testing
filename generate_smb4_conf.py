@@ -54,6 +54,13 @@ log = logging.getLogger('generate_smb4_conf')
 def qw(w):
     return '"%s"' % w.replace('"', '\\"')
 
+def get_server_branding(client)
+    server_branding = "FREENAS"
+    if not client.call('notifier.is_freenas'):
+        failover_status = client.call('notifier.failover_status')
+        server_branding = "TRUENAS_" + failover_status 
+
+    return server_branding
 
 def debug_SID(str):
     if str:
@@ -1256,29 +1263,6 @@ def generate_smbusers(client):
     os.chmod("/usr/local/etc/smbusers", 0o644)
 
 
-def provision_smb4(client):
-    if not client.call('notifier.samba4', 'domain_provision', timeout=300):
-        print("Failed to provision domain", file=sys.stderr)
-        return False
-
-    if not client.call('notifier.samba4', 'disable_password_complexity'):
-        print("Failed to disable password complexity", file=sys.stderr)
-        return False
-
-    if not client.call('notifier.samba4', 'set_min_pwd_length'):
-        print("Failed to set minimum password length", file=sys.stderr)
-        return False
-
-    if not client.call('notifier.samba4', 'set_administrator_password'):
-        print("Failed to set administrator password", file=sys.stderr)
-        return False
-
-    if not client.call('notifier.samba4', 'domain_sentinel_file_create'):
-        return False
-
-    return True
-
-
 def smb4_mkdir(dir):
     try:
         os.makedirs(dir)
@@ -1637,9 +1621,6 @@ def main():
     generate_smb4_conf(client, smb4_conf, role)
     generate_smb4_system_shares(client, smb4_shares)
     generate_smb4_shares(client, smb4_shares)
-
-    if role == 'dc' and not client.call('notifier.samba4', 'domain_provisioned'):
-        provision_smb4(client)
 
     with open(smb_conf_path, "w") as f:
         for line in smb4_conf:
